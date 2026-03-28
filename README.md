@@ -119,6 +119,7 @@ No files are written, and no emojis or extra output are displayed.
 ⸻
 
 Key Advantages
+
 	1.	Pre-OOBE Ready: Runs before any user logs in.
 	
 	2.	Offline-Safe: Can install from cached MSI if no Internet is available.
