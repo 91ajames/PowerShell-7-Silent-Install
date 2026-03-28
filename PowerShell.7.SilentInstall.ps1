@@ -1,14 +1,26 @@
 # ========================================
 # Fresh Install Latest PowerShell 7 (OOBE Ready)
-# Smart Cached MSI, Auto-Delete Old Offline Files, Detailed Summary
+# Smart Cached MSI, Auto-Delete Old Offline Files
+# With Execution Policy Self-Bypass & Session Cleanup
 # ========================================
 
-# Requires Administrator privileges
+# -------------------------------
+# Self-bypass Execution Policy
+# -------------------------------
+if ($PSVersionTable.PSVersion.Major -lt 7 -and $env:PSExecutionPolicyPreference -ne "Bypass") {
+    Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs -Wait
+    exit
+}
 
+# -------------------------------
+# Temp path for MSI
+# -------------------------------
 $tempDir = "$env:TEMP"
 $tempMsiPattern = "PowerShell-*-win-x64.msi"
 
-# Function: Check Internet connectivity
+# -------------------------------
+# Check Internet connectivity
+# -------------------------------
 function Test-Internet {
     try { Invoke-WebRequest -Uri "https://github.com" -UseBasicParsing -TimeoutSec 5 | Out-Null; return $true }
     catch { return $false }
@@ -16,7 +28,9 @@ function Test-Internet {
 
 $internetAvailable = Test-Internet
 
-# Function: Get installed PowerShell 7 version
+# -------------------------------
+# Get installed PowerShell 7 version
+# -------------------------------
 function Get-InstalledPwshVersion {
     try {
         $pwshPath = Get-Command pwsh.exe -ErrorAction Stop | Select-Object -ExpandProperty Source
@@ -25,28 +39,40 @@ function Get-InstalledPwshVersion {
     } catch { return $null }
 }
 
-# Remove old PS7 installations
+# -------------------------------
+# Clean old PowerShell 7 installations
+# -------------------------------
 $installedPS7 = Get-ChildItem "C:\Program Files\PowerShell" -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^7' }
 foreach ($dir in $installedPS7) { Remove-Item $dir.FullName -Recurse -Force -ErrorAction SilentlyContinue }
 
-# Clear module caches & temp logs
+# -------------------------------
+# Clear caches and temp logs
+# -------------------------------
 $localCache = "$env:LOCALAPPDATA\Microsoft\PowerShell"
 if (Test-Path $localCache) { Remove-Item $localCache -Recurse -Force -ErrorAction SilentlyContinue }
+
 $programDataModules = "$env:ProgramData\Microsoft\PowerShell\Modules"
 if (Test-Path $programDataModules) { Get-ChildItem $programDataModules -Recurse | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue }
+
 $msiLogs = Get-ChildItem "$env:TEMP" -Include "*.log","*.tmp" -Recurse -ErrorAction SilentlyContinue
 foreach ($file in $msiLogs) { Remove-Item $file.FullName -Force -ErrorAction SilentlyContinue }
 
+# -------------------------------
 # Detect cached MSI
+# -------------------------------
 $cachedMsi = Get-ChildItem "$tempDir\$tempMsiPattern" -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
+# -------------------------------
 # Initialize summary
+# -------------------------------
 $summary = @{
     "Action" = ""
     "InstalledVersion" = ""
 }
 
-# Fetch latest release info if Internet is available
+# -------------------------------
+# Fetch latest release from GitHub if Internet available
+# -------------------------------
 if ($internetAvailable) {
     $headers = @{ "User-Agent" = "PowerShell" }
     $release = Invoke-RestMethod -Uri "https://api.github.com/repos/PowerShell/PowerShell/releases/latest" -Headers $headers -UseBasicParsing
@@ -56,6 +82,9 @@ if ($internetAvailable) {
     $msiSizeMB = [math]::Round($msiAsset.size / 1MB, 2)
 }
 
+# -------------------------------
+# Decide whether to use cached MSI or download
+# -------------------------------
 $downloadMsi = $true
 
 if ($cachedMsi) {
@@ -84,25 +113,42 @@ if (-not $internetAvailable -and -not $cachedMsi) {
     return
 }
 
+# -------------------------------
 # Download MSI if required
+# -------------------------------
 if ($downloadMsi) {
     Invoke-WebRequest -Uri $msiUrl -OutFile "$tempDir\$msiAsset.name" -UseBasicParsing
     $cachedMsi = "$tempDir\$msiAsset.name"
     if (-not $summary["Action"]) { $summary["Action"] = "Downloaded latest MSI" }
 }
 
+# -------------------------------
 # Silent Install
+# -------------------------------
 Start-Process msiexec.exe -ArgumentList "/i `"$cachedMsi`" /qn /norestart" -Wait
 
-# Cleanup if downloaded
+# Cleanup downloaded MSI if applicable
 if ($downloadMsi -and Test-Path $cachedMsi) { Remove-Item $cachedMsi -Force }
 
+# -------------------------------
 # Verification
+# -------------------------------
 $installedVersion = Get-InstalledPwshVersion
 $summary["InstalledVersion"] = $installedVersion ? $installedVersion : "Failed"
 
-# Final Summary
+# -------------------------------
+# Console Summary
+# -------------------------------
 Write-Output "`n==== Installation Summary ===="
 Write-Output "Action Taken       : $($summary["Action"])"
 Write-Output "Installed Version  : $($summary["InstalledVersion"])"
 Write-Output "==============================`n"
+
+# -------------------------------
+# Final Session Cleanup
+# -------------------------------
+Remove-Variable * -ErrorAction SilentlyContinue
+Get-Command | Where-Object { $_.CommandType -eq 'Function' -and $_.Name -notlike 'Get-*' } | ForEach-Object { Remove-Item Function:\$($_.Name) -ErrorAction SilentlyContinue }
+Clear-History
+Remove-Item Alias:\* -ErrorAction SilentlyContinue
+Clear-Host
