@@ -1,79 +1,106 @@
-This script is designed for fresh deployments of Windows 11 (pre-OOBE) to ensure that the latest PowerShell 7 is installed cleanly and silently. It handles online and offline scenarios, automatically cleans up old installations and caches, and provides a clear console summary of what was done.
+Script Overview
 
-It is fully pre-OOBE friendly, meaning it can be run before the first user logs in, making it ideal for IT imaging, automated setups, or controlled deployments.
+This script is designed to install the latest PowerShell 7 on a fresh Windows 11 system, including pre-OOBE deployments (before the first user login). It is fully offline-safe, automated, and cleans up after itself.
+
+It is ideal for IT departments, system imaging, automated deployments, or lab setups where you want a consistent PowerShell 7 environment without manual intervention.
 
 ⸻
 
-Detailed Functionality
+High-Level Features
+	1.	Self-bypasses PowerShell execution policy so it can run on systems where script execution is restricted.
+	2.	Detects Internet connectivity and chooses whether to download the latest MSI or use a cached MSI file in %TEMP%.
+	3.	Deletes old cached MSI files if outdated.
+	4.	Cleans old PowerShell 7 installations to ensure a fresh install.
+	5.	Removes temp files, module caches, and MSI logs to prevent leftover clutter.
+	6.	Performs silent installation of PowerShell 7 using msiexec.
+	7.	Verifies installation by checking the installed PowerShell 7 version.
+	8.	Provides a console-only summary of actions taken and the installed version.
+	9.	Cleans the PowerShell session at the end (variables, functions, aliases, history, console), leaving a clean environment.
 
-1. Internet & Cached MSI Pre-Check
-	•	The script first checks if there is an active Internet connection by attempting a request to https://github.com.
-	•	It also checks the %TEMP% folder for a cached PowerShell 7 MSI file.
-	•	Three possible scenarios are handled:
-	1.	Internet available, no cached MSI → downloads the latest MSI.
-	2.	Internet available, cached MSI exists → compares cached version to latest release:
-	•	If cached MSI is older, deletes it and downloads the new one.
+⸻
+
+Step-by-Step Behavior
+
+1. Execution Policy Self-Bypass
+	•	On systems where script execution is restricted, the script relaunches itself with -ExecutionPolicy Bypass.
+	•	This ensures it can run pre-OOBE or on locked-down environments without permanently changing the system policy.
+
+⸻
+
+2. Internet and Cached MSI Check
+	•	Checks if the system has Internet access by attempting a quick request to https://github.com.
+	•	Checks %TEMP% for an existing PowerShell 7 MSI file.
+	•	Handles all scenarios:
+	1.	Internet + no cached MSI → downloads the latest MSI.
+	2.	Internet + cached MSI exists → compares version:
+	•	If cached MSI is older, deletes and downloads the latest.
 	•	If cached MSI is up-to-date, uses it.
-	3.	No Internet, cached MSI exists → uses cached MSI for installation.
-	4.	No Internet, no cached MSI → displays "Check Internet", waits 3 seconds, and exits.
-
-This ensures the script works offline if a cached installer exists while always keeping installations up-to-date when Internet is available.
+	3.	No Internet + cached MSI exists → uses cached MSI.
+	4.	No Internet + no cached MSI → displays Check Internet, waits 3 seconds, and exits.
 
 ⸻
 
-2. Clean Removal of Old PowerShell 7 Versions
-	•	Detects any existing PowerShell 7 installations in C:\Program Files\PowerShell\7*.
-	•	Deletes old installations recursively to avoid conflicts with the new installation.
-	•	Ensures a fresh installation environment without leftover files or settings.
+3. Clean Old PowerShell 7 Installations
+	•	Detects previous PS7 installations in C:\Program Files\PowerShell\7*.
+	•	Deletes old folders recursively to prevent conflicts with the new installation.
 
 ⸻
 
-3. Clearing Local and System PowerShell Caches
-	•	Removes user-level module caches at %LOCALAPPDATA%\Microsoft\PowerShell.
-	•	Removes system-level modules at %ProgramData%\Microsoft\PowerShell\Modules.
-	•	Deletes temporary log files in %TEMP%.
+4. Clear Module Caches and Temp Logs
+	•	Deletes user-level PowerShell module caches at %LOCALAPPDATA%\Microsoft\PowerShell.
+	•	Deletes system-level modules at %ProgramData%\Microsoft\PowerShell\Modules.
+	•	Removes temporary MSI log files in %TEMP%.
 
-This prevents old modules, logs, or temp files from causing conflicts or unnecessary disk usage.
-
-⸻
-
-4. MSI Download and Installation
-	•	If required, the script downloads the latest PowerShell 7 MSI from the official GitHub release page.
-	•	Installs PowerShell silently using msiexec /i /qn /norestart — no user interaction is needed.
-	•	After installation, any newly downloaded MSI is deleted to save space.
+This prevents old or conflicting modules, logs, or temp files from interfering with the new installation.
 
 ⸻
 
-5. Version Verification
+5. Silent Installation of PowerShell 7
+	•	Uses msiexec.exe /i <MSI> /qn /norestart to install silently without user interaction.
+	•	Deletes the downloaded MSI afterward to save space.
+
+⸻
+
+6. Installation Verification
 	•	After installation, the script checks the installed PowerShell version using $PSVersionTable.PSVersion.
-	•	This ensures that the intended version is installed correctly.
+	•	This ensures that the intended version was successfully installed.
 
 ⸻
 
-6. Console Summary
+7. Console Summary
 
-At the end, the script prints a plain-text summary showing:
+At the end, the script prints a clear plain-text summary:
 
-Field	Meaning
-Action Taken	What the script did, e.g.:- "Used cached MSI (latest)"- "Deleted old cached MSI and downloaded latest"- "Used cached MSI (offline, version X.X.X)"- "Downloaded latest MSI"
-Installed Version	The actual PowerShell version installed, or "Failed" if installation did not complete
+Field
+Description
+Action Taken
+Shows what the script did: used cached MSI, deleted old MSI, downloaded new MSI, etc.
+Installed Version
+Displays the PowerShell 7 version installed, or Failed if installation did not succeed.
 
-No files are written, no logs or emojis — everything is console-only, making it ideal for deployment logs or watching progress in real-time.
+No files are written, and no emojis or extra output are displayed.
+
+⸻
+
+8. Final Session Cleanup
+	•	Removes all variables, functions, aliases, and command history created during script execution.
+	•	Clears the PowerShell console (Clear-Host).
+	•	After this, the session is completely clean, leaving only the newly installed PowerShell 7 environment.
 
 ⸻
 
 Key Advantages
-	1.	Pre-OOBE Ready: Runs before first user login.
-	2.	Online & Offline Capable: Automatically chooses between cached MSI and online download.
-	3.	Always Up-to-Date: Deletes outdated cached MSIs and fetches the latest release when Internet is available.
-	4.	Clean Install: Removes old versions, clears caches and temp files.
-	5.	Silent & Automated: No user interaction required.
-	6.	Clear Feedback: Console summary provides an instant report of actions and installed version.
+	1.	Pre-OOBE Ready: Runs before any user logs in.
+	2.	Offline-Safe: Can install from cached MSI if no Internet is available.
+	3.	Always Up-to-Date: Automatically downloads latest release if available.
+	4.	Clean Environment: Removes old installations, temp files, module caches, and leaves no trace in the session.
+	5.	Silent & Automated: No user interaction required; suitable for bulk deployment.
+	6.	Console Summary Only: Easy to read for deployment logs without creating extra files.
 
 ⸻
 
-Use Case Examples
-	•	IT departments preparing Windows 11 images for deployment.
-	•	Automated setup scripts for new machines in a corporate or lab environment.
-	•	Pre-OOBE customization scripts for OEM or IT provisioning.
-	•	Ensuring consistent PowerShell 7 versions across multiple systems.
+Intended Use Cases
+	•	Corporate imaging or deployment scripts for new Windows 11 machines.
+	•	Pre-OOBE customization for OEM or IT provisioning.
+	•	Ensuring consistent PowerShell 7 versions across labs or test environments.
+	•	Automated setup in WinPE, unattend scripts, or first-boot tasks.
