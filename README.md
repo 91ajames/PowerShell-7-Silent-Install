@@ -100,13 +100,9 @@ This prevents old or conflicting modules, logs, or temp files from interfering w
 
 At the end, the script prints a clear plain-text summary:
 
-Shows what the script did: 
+Action Taken: Shows what the script did: used cached MSI, deleted old MSI, downloaded new MSI, etc.
 
-used cached MSI, deleted old MSI, downloaded new MSI, etc.
-
-Installed Version:
-
-Displays the PowerShell 7 version installed, or Failed if installation did not succeed.
+Installed Version: Displays the PowerShell 7 version installed, or Failed if installation did not succeed.
 
 No files are written, and no emojis or extra output are displayed.
 
