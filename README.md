@@ -61,7 +61,7 @@ Step-by-Step Behavior
 ⸻
 
 3. Clean Old PowerShell 7 Installations
-4.  
+
 	•	Detects previous PS7 installations in C:\Program Files\PowerShell\7*.
 
 	•	Deletes old folders recursively to prevent conflicts with the new installation.
